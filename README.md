@@ -6,7 +6,8 @@ How to run locally:
 pip install streamlit
 2. Run the app
 streamlit run app.py
-3. Open your browser
+OR TO BYPASS PATH: python -m streamlit run app.py
+4. Open your browser
 http://localhost:8501
 
 How to run via Google Colab (with a tunnel):
