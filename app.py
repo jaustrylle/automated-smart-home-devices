@@ -5,6 +5,7 @@ from facts import Facts
 from rules import load_rules
 from engine import forward_chain
 from explain import format_explanations
+from logger import log_event, get_logs, clear_logs
 
 # ----------------------
 # INIT SYSTEM
