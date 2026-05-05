@@ -3,8 +3,11 @@
 import os
 import pandas as pd
 
+# data1 = pd.read_csv("datasets/smart_home_energy.csv")
+# data2 = pd.read_csv("datasets/smart_home_dataset.csv")
+
 BASE_DIR = os.path.dirname(__file__)
-DATA_DIR = os.path.join(BASE_DIR, "data")
+DATA_DIR = os.path.join(BASE_DIR, "datasets")
 
 
 def load_csv(filename):
