@@ -6,6 +6,9 @@ from engine import forward_chain
 from explain import format_explanations
 from logger import log_event, get_logs, clear_logs
 
+from learning import run_learning
+from logger import get_logs
+
 # -----------------------------
 # INIT SYSTEM
 # -----------------------------
@@ -86,6 +89,24 @@ with col2:
     formatted = format_explanations(explanations)
     for f in formatted:
         st.text(f)
+
+st.subheader("🧠 Learned Behavior (AI Suggestions)")
+
+if st.button("Run Learning Engine"):
+
+    logs = get_logs()
+    suggestions = run_learning(logs)
+
+    if suggestions:
+
+        for s in suggestions:
+            st.write(f"**Rule:** {s['rule']}")
+            st.write(f"Logic: {s['logic']}")
+            st.write(f"Confidence: {s['confidence']}")
+            st.write("---")
+
+    else:
+        st.write("No patterns found yet.")
 
 # -----------------------------
 # LIVE FACTS VIEW
