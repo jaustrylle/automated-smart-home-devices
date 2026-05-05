@@ -2,37 +2,56 @@
 # Learns patterns from user/system logs to suggest or generate rules
 
 from collections import Counter
-from datetime import datetime
-
 
 # -----------------------------------
-# 1. EXTRACT PATTERNS FROM LOGS
+# 1. EXTRACT ACTIONS (FIXED)
 # -----------------------------------
 def extract_action_patterns(logs):
-    """
-    Counts how often each action occurs.
-    """
+
     actions = []
 
     for entry in logs:
+
         if entry["event_type"] == "inference_result":
-            actions.extend(entry["data"]["actions"])
+
+            data = entry.get("data", {})
+            actions.extend(data.get("actions", []))
 
     return Counter(actions)
 
 
 # -----------------------------------
-# 2. DETECT TIME-BASED PATTERNS
+# 2. EXTRACT RULE FREQUENCY (NEW - IMPORTANT)
+# -----------------------------------
+def extract_rule_patterns(logs):
+
+    rules = []
+
+    for entry in logs:
+
+        if entry["event_type"] == "inference_result":
+
+            data = entry.get("data", {})
+            explanations = data.get("explanations", [])
+
+            for e in explanations:
+                rules.append(e.get("rule"))
+
+    return Counter(rules)
+
+
+# -----------------------------------
+# 3. TIME PATTERNS (IMPROVED)
 # -----------------------------------
 def extract_time_patterns(logs):
-    """
-    Finds which hours actions happen most frequently.
-    """
+
     time_map = {}
 
     for entry in logs:
+
         if entry["event_type"] == "sensor_update":
-            hour = entry["data"].get("time", None)
+
+            hour = entry["data"].get("time")
 
             if hour is not None:
                 time_map[hour] = time_map.get(hour, 0) + 1
@@ -41,62 +60,56 @@ def extract_time_patterns(logs):
 
 
 # -----------------------------------
-# 3. SUGGEST NEW RULES
+# 4. RULE GENERATION (NOW WORKS)
 # -----------------------------------
-def suggest_rules(action_counts, time_patterns, threshold=3):
-    """
-    Converts patterns into rule suggestions.
-    """
+def suggest_rules(action_counts, rule_counts, time_patterns):
 
-    suggested_rules = []
+    suggestions = []
 
-    # Example: frequent "lock_doors"
+    # --- ACTION-BASED LEARNING ---
     for action, count in action_counts.items():
 
-        if count >= threshold:
+        if count >= 2:   # LOWER threshold for your dataset
 
-            if action == "lock_doors":
-                suggested_rules.append(
-                    {
-                        "rule": "auto_lock_night",
-                        "logic": "if time >= 23 → lock_doors",
-                        "confidence": count
-                    }
-                )
+            if action == "turn_off_lights":
+                suggestions.append({
+                    "rule": "energy_saving_lights",
+                    "logic": "if no motion → turn_off_lights",
+                    "confidence": count
+                })
 
-            if action == "turn_off_kitchen_light":
-                suggested_rules.append(
-                    {
-                        "rule": "energy_saving_lights",
-                        "logic": "if no motion → turn_off_lights",
-                        "confidence": count
-                    }
-                )
+    # --- RULE-BASED LEARNING ---
+    for rule, count in rule_counts.items():
 
-    # Time-based inference example
+        if count >= 3:
+
+            suggestions.append({
+                "rule": f"reinforced_{rule}",
+                "logic": f"strengthen existing rule: {rule}",
+                "confidence": count
+            })
+
+    # --- TIME-BASED LEARNING ---
     for hour, freq in time_patterns.items():
 
-        if freq >= threshold and hour >= 22:
-            suggested_rules.append(
-                {
-                    "rule": "night_mode_inference",
-                    "logic": f"if time >= {hour} → activate night mode",
-                    "confidence": freq
-                }
-            )
+        if freq >= 2 and hour >= 22:
 
-    return suggested_rules
+            suggestions.append({
+                "rule": "night_mode_auto_detected",
+                "logic": f"if time >= {hour} → activate night behavior",
+                "confidence": freq
+            })
+
+    return suggestions
 
 
 # -----------------------------------
-# 4. MAIN LEARNING PIPELINE
+# 5. MAIN PIPELINE
 # -----------------------------------
 def run_learning(logs):
-    """
-    Full learning pipeline.
-    """
 
     action_counts = extract_action_patterns(logs)
+    rule_counts = extract_rule_patterns(logs)
     time_patterns = extract_time_patterns(logs)
 
-    return suggest_rules(action_counts, time_patterns)
+    return suggest_rules(action_counts, rule_counts, time_patterns)
