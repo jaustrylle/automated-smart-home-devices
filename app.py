@@ -1,40 +1,45 @@
 import streamlit as st
+from datetime import datetime
 
 from facts import Facts
 from rules import load_rules
 from engine import forward_chain
-from explain import format_explanations
 from logger import log_event, get_logs, clear_logs
-
+from explain import format_explanations
 from learning import run_learning
-from logger import get_logs
+
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
+st.set_page_config(
+    page_title="Smart Home AI",
+    layout="wide",
+    page_icon="🏠"
+)
 
 # -----------------------------
 # INIT SYSTEM
 # -----------------------------
-st.set_page_config(page_title="Smart Home AI", layout="wide")
-
 facts = Facts()
 rules = load_rules()
 
-st.title("🏠 Smart Home Rule-Based AI System")
+st.title("🏠 Smart Home AI System")
+st.caption("Rule-based forward chaining AI with appliance-aware reasoning")
 
 # -----------------------------
-# SIDEBAR (USER CONTROL)
+# SIDEBAR (CONTROL PANEL)
 # -----------------------------
-st.sidebar.header("User Controls")
+st.sidebar.header("⚙️ Control Panel")
 
-override = st.sidebar.toggle("Override System")
-sleep_time = st.sidebar.slider("Sleep Time", 0, 23, 22)
+override = st.sidebar.toggle("🚫 Override System")
+sleep_time = st.sidebar.slider("🌙 Sleep Time", 0, 23, 22)
 
-# -----------------------------
-# SENSOR INPUTS
-# -----------------------------
-st.header("Sensor Inputs")
+st.sidebar.divider()
 
-motion = st.checkbox("Motion detected in kitchen")
-time = st.slider("Current Hour", 0, 23, 21)
-temperature = st.slider("Temperature", 60, 90, 72)
+st.sidebar.subheader("📡 Sensor Controls")
+motion = st.sidebar.checkbox("Motion detected (kitchen)")
+time = st.sidebar.slider("Current Hour", 0, 23, 21)
+temperature = st.sidebar.slider("Temperature (°F)", 60, 90, 72)
 
 # -----------------------------
 # UPDATE FACTS
@@ -44,18 +49,14 @@ facts.update("time", time)
 facts.update("temperature", temperature)
 facts.update("override", override)
 
-# log sensor input
 log_event("sensor_update", facts.get())
 
 # -----------------------------
-# INFERENCE ENGINE
+# RUN INFERENCE
 # -----------------------------
 if not override:
-
     actions, explanations = forward_chain(facts.get(), rules)
-
 else:
-
     actions = ["SYSTEM PAUSED"]
     explanations = [{
         "action": "none",
@@ -63,36 +64,48 @@ else:
         "why": "User disabled automation"
     }]
 
-# log decisions
 log_event("inference_result", {
     "actions": actions,
     "explanations": explanations
 })
 
 # -----------------------------
-# OUTPUT SECTION
+# MAIN DASHBOARD LAYOUT
 # -----------------------------
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
+# ---- COLUMN 1: ACTIONS ----
 with col1:
-    st.subheader("🧠 Actions Taken")
+    st.subheader("⚡ Actions")
 
     if actions:
         for a in actions:
-            st.write("•", a)
+            st.success(a)
     else:
-        st.write("No actions triggered")
+        st.info("No actions triggered")
 
+# ---- COLUMN 2: EXPLANATIONS ----
 with col2:
-    st.subheader("🔍 Explainability")
+    st.subheader("🧠 Reasoning")
 
     formatted = format_explanations(explanations)
+
     for f in formatted:
-        st.text(f)
+        st.code(f)
 
-st.subheader("🧠 Learned Behavior (AI Suggestions)")
+# ---- COLUMN 3: SYSTEM STATE ----
+with col3:
+    st.subheader("📊 Live State")
+    st.json(facts.get())
 
-if st.button("Run Learning Engine"):
+# -----------------------------
+# LEARNING SECTION
+# -----------------------------
+st.divider()
+
+st.subheader("🧠 Learning Engine (Behavior Discovery)")
+
+if st.button("Run Learning Analysis"):
 
     logs = get_logs()
     suggestions = run_learning(logs)
@@ -100,39 +113,40 @@ if st.button("Run Learning Engine"):
     if suggestions:
 
         for s in suggestions:
-            st.write(f"**Rule:** {s['rule']}")
-            st.write(f"Logic: {s['logic']}")
-            st.write(f"Confidence: {s['confidence']}")
-            st.write("---")
+            st.markdown(f"### 🔹 {s['rule']}")
+            st.write("**Logic:**", s["logic"])
+            st.write("**Confidence:**", s["confidence"])
+            st.divider()
 
     else:
-        st.write("No patterns found yet.")
+        st.warning("No patterns found yet")
 
 # -----------------------------
-# LIVE FACTS VIEW
+# LOG VIEWER (DEBUG PANEL)
 # -----------------------------
-st.subheader("📡 Live System State")
-st.json(facts.get())
+with st.expander("📜 System Logs (Debug View)"):
+
+    logs = get_logs()
+
+    if logs:
+        for entry in reversed(logs[-15:]):
+            st.write(f"**{entry['timestamp']}** — {entry['event_type']}")
+            st.json(entry["data"])
+            st.divider()
+    else:
+        st.info("No logs available")
 
 # -----------------------------
-# LOGS SECTION (PERSISTENT)
+# SYSTEM ACTION BAR
 # -----------------------------
-st.subheader("📊 System Logs")
+st.divider()
 
-logs = get_logs()
+colA, colB = st.columns(2)
 
-if logs:
-    for entry in reversed(logs[-10:]):
-        st.write(f"**{entry['timestamp']}**")
-        st.write(entry["event_type"])
-        st.json(entry["data"])
-        st.write("---")
-else:
-    st.write("No logs yet.")
+with colA:
+    if st.button("🧹 Clear Logs"):
+        clear_logs()
+        st.success("Logs cleared")
 
-# -----------------------------
-# CLEAR LOGS
-# -----------------------------
-if st.button("Clear Logs"):
-    clear_logs()
-    st.rerun()
+with colB:
+    st.button("🔄 Refresh State")
